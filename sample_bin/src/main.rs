@@ -2,8 +2,8 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
-extern crate sample_lib;
-use sample_lib::*;
+extern crate child2_lib;
+use child2_lib::*;
 
 mod child1;
 use child1::*;

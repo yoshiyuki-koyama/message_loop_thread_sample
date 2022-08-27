@@ -17,7 +17,7 @@ pub enum FromChild1Message {
 }
 
 // 子スレッド1の実装。親スレッドと同じcrate内にあるため、ToParentMessage を使える。
-// 異なるcrateに存在する場合の解決方法は sample_lib の子スレッド2の実装を参照。
+// 異なるcrateに存在する場合の解決方法は child2_lib の子スレッド2の実装を参照。
 pub fn child1_thread(
     to_parent_sender: Sender<ToParentMessage>,
     to_child1_receiver: Receiver<ToChild1Message>,
