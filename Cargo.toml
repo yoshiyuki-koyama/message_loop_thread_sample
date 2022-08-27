@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "sample_bin",
+    "sample_lib",
+]
