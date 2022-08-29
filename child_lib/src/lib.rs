@@ -15,8 +15,9 @@ pub enum FromChildMessage {
     Done,
 }
 
-// 子スレッドのメッセージ受信ループ用。
-// 列挙子は現実装では一つだが、この子スレッドがさらに子スレッド（=孫スレッド）を持つ場合にはFromGrandChild(FromGrandChildMessage)みたいなものが追加されるイメージ。
+// 子スレッドのメッセージループ用。
+// この実装では列挙子は一つしかないが、
+// この子スレッドがさらに子スレッド（=孫スレッド）を持つ場合にはFromGrandChild(FromGrandChildMessage)みたいなものが追加されるイメージ。
 enum ToChildInnerMessage {
     FromParent(ToChildMessage),
 }
@@ -26,6 +27,7 @@ fn child_thread<F>(send_to_parent: F, to_child_receiver: Receiver<ToChildInnerMe
 where
     F: Fn(FromChildMessage),
 {
+    // メッセージループ
     loop {
         match to_child_receiver.recv().unwrap() {
             ToChildInnerMessage::FromParent(message) => match message {
@@ -39,10 +41,10 @@ where
                     send_to_parent(FromChildMessage::Done);
                 }
                 ToChildMessage::Exit => {
-                    // スレッドを終了させる
+                    // メッセージループを抜ける
                     break;
                 }
-            }, // 孫スレッドが存在する場合などは以下に続く
+            }, // 孫スレッドが存在する場合などは以下にmatchの実装が続く
         }
     }
 }
@@ -67,14 +69,16 @@ impl ChildThread {
         }
     }
 
-    // 親スレッドから子スレッド向けにメッセージを送る。ToChildInnerMessage::FromParent()でくるんでsend()する。
+    // 親スレッドから子スレッド向けにメッセージを送るメソッド。
+    // ToChildInnerMessage::FromParent()でくるんでsend()する。
+    // 親スレッドはそれを意識せず、ToChildMessage型で引数を渡せばよい。
     pub fn send(&self, message: ToChildMessage) {
         self.to_child_sender
             .send(ToChildInnerMessage::FromParent(message))
             .unwrap()
     }
 
-    // この実装では手動でExit⇒join()するようにさせているが、impl Drop for ChildThreadも実装すると良いと思う（Exitメッセージの送信も込みで。）。
+    // この実装では手動でExit⇒join()するようにさせているが、impl Drop for ChildThreadも実装するとよいと思う（Exitメッセージの送信も込みで。）。
     pub fn join(&mut self) {
         let op_child_thread = self.op_child_thread.take();
         if let Some(child_thread) = op_child_thread {

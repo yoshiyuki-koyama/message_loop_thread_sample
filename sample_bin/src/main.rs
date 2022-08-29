@@ -5,7 +5,7 @@ use child_lib::*;
 
 // 各子スレッドから親スレッドへのメッセージ
 // 一か所でReceiveするためそれぞれの子スレッドからのメッセージ型を保有する。
-// この実装では列挙子は1つだけだが、Child2(FromChild2Message)などが追加されるイメージ。
+// この実装では列挙子は1つだけだが、子スレッドが増えればChild2(FromChild2Message)などが追加されるイメージ。
 pub enum ToParentMessage {
     Child(FromChildMessage),
 }
@@ -27,7 +27,7 @@ fn main() {
     // 子スレッドにメッセージを送るときはsend()メソッドで送る。
     child.send(ToChildMessage::Run);
 
-    // 親スレッドの Receiver を使ったイベントドリブンなループ
+    // メッセージループ
     loop {
         match to_parent_receiver.recv().unwrap() {
             // 子スレッドからのイベント
@@ -41,7 +41,7 @@ fn main() {
             } // 他の子スレッドがある場合は以下に続く
         }
     }
-    // 子スレッド終了処理。Dropに実装しておいてもよい。
+    // 子スレッド終了処理。子スレッドのDropに実装しておいてもよいと思う。
     child.send(ToChildMessage::Exit);
     child.join();
     println!("the child thread joined.");
