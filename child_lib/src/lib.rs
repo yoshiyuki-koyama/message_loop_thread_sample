@@ -23,7 +23,7 @@ enum ToChildInnerMessage {
 
 // 子スレッド
 fn child_thread<F>(
-    to_parent_sender_func: F,
+    send_to_parent: F,
     to_child_receiver: Receiver<ToChildInnerMessage>,
 )
 where F: Fn(FromChildMessage),
@@ -38,7 +38,7 @@ where F: Fn(FromChildMessage),
                         thread::sleep(Duration::new(1,0));
                     }
                     // 親スレッドへ処理完了メッセージを送る
-                    to_parent_sender_func(FromChildMessage::Done);
+                    send_to_parent(FromChildMessage::Done);
                 }
                 ToChildMessage::Exit => {
                     // スレッドを終了させる
@@ -60,13 +60,13 @@ pub struct ChildThread{
 
 impl ChildThread {
     pub fn new<F>(
-        to_parent_sender_func: F,
+        send_to_parent: F,
     ) -> ChildThread 
     where F: Fn(FromChildMessage) + std::marker::Send + 'static,
     {
         let (to_child_sender, to_child_receiver) = channel::<ToChildInnerMessage>();
         let child_thread = thread::spawn(move || child_thread(
-            to_parent_sender_func, 
+            send_to_parent, 
             to_child_receiver));
         ChildThread {
             to_child_sender: to_child_sender,
