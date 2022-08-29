@@ -18,9 +18,11 @@ fn main() {
     let to_parent_sender_clone = to_parent_sender.clone();
 
     // 子スレッドのインスタンス作成。引数は「親スレッドへの Sender によるsend()を実装したクロージャ」。
-    let mut child = ChildThread::new(
-        move |x| to_parent_sender_clone.send(ToParentMessage::Child(x)).unwrap()
-    );
+    let mut child = ChildThread::new(move |x| {
+        to_parent_sender_clone
+            .send(ToParentMessage::Child(x))
+            .unwrap()
+    });
 
     // 子スレッドにメッセージを送るときはsend()メソッドで送る。
     child.send(ToChildMessage::Run);
@@ -34,11 +36,9 @@ fn main() {
                     FromChildMessage::Done => {
                         println!("Child: Return \"Done\".");
                         break;
-                    }
-                    // 実際はもっといろいろなメッセージがあるはず。
+                    } // 実際はもっといろいろなメッセージがあるはず。
                 }
-            }
-            // 他の子スレッドがある場合は以下に続く
+            } // 他の子スレッドがある場合は以下に続く
         }
     }
     // 子スレッド終了処理。Dropに実装しておいてもよい。
