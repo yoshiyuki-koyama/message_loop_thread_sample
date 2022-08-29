@@ -6,4 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-child2_lib = { path = "../child2_lib" }
+child_lib = { path = "../child_lib" }

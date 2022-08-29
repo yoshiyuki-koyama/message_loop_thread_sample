@@ -1,85 +1,48 @@
 use std::sync::mpsc::channel;
-use std::thread;
-use std::time::Duration;
 
-extern crate child2_lib;
-use child2_lib::*;
-
-mod child1;
-use child1::*;
+extern crate child_lib;
+use child_lib::*;
 
 // 各子スレッドから親スレッドへのメッセージ
 // 一か所でReceiveするためそれぞれの子スレッドからのメッセージ型を保有する。
+// この実装では列挙子は1つだけだが、Child2(FromChild2Message)などが追加されるイメージ。
 pub enum ToParentMessage {
-    Child1(FromChild1Message),
-    Child2(FromChild2Message),
+    Child(FromChildMessage),
 }
 
 // main関数(親スレッド)
 fn main() {
     // 子スレッドから親スレッドへの Sender、 Reciever 。
     let (to_parent_sender, to_parent_receiver) = channel::<ToParentMessage>();
-    // 子スレッド作成時に所有権が移動するので Sender をクローンしておく。
-    let to_parent_sender_clone1 = to_parent_sender.clone();
-    let to_parent_sender_clone2 = to_parent_sender.clone();
+    // 子スレッド作成時に所有権が移動するので Sender をクローンしておく。（今回は子スレッドが1つしかないので本当は必要ないはず）
+    let to_parent_sender_clone = to_parent_sender.clone();
 
-    // 親スレッドから子スレッド1への Sender、 Reciever 。
-    let (to_child1_sender, to_child1_receiver) = channel::<ToChild1Message>();
-    // 子スレッド1作成。child1_threadへの引数は、親スレッドへの Sender と子スレッド1への Reciever。
-    let child1_thread_instance = thread::spawn(move || child1_thread(
-        to_parent_sender_clone1,
-        to_child1_receiver));
+    // 子スレッドのインスタンス作成。引数は「親スレッドへの Sender によるsend()を実装したクロージャ」。
+    let mut child = ChildThread::new(
+        move |x| to_parent_sender_clone.send(ToParentMessage::Child(x)).unwrap()
+    );
 
-    // 親スレッドから子スレッド2への Sender、 Reciever 。
-    let (to_child2_sender, to_child2_receiver) = channel::<ToChild2Message>();
-    // 子スレッド2作成。child2_threadへの引数は、「親スレッドへの Sender によるsend()を実装したクロージャ」と子スレッド1への Reciever。
-    let child2_thread_instance = thread::spawn(move || child2_thread(
-        &|x| to_parent_sender_clone2.send(ToParentMessage::Child2(x)).unwrap(), 
-        to_child2_receiver));
-
-    // ここの処理はサンプル用に子スレッドにメッセージを送信しているだけ
-    to_child1_sender.send(ToChild1Message::Run).unwrap();
-    thread::sleep(Duration::new(0, 500000000));
-    to_child2_sender.send(ToChild2Message::Run).unwrap();
-
-    // loopを抜けるための雑な仕組み
-    let mut sent_exit1 = false;
-    let mut sent_exit2 = false;
+    // 子スレッドにメッセージを送るときはsend()メソッドで送る。
+    child.send(ToChildMessage::Run);
 
     // 親スレッドの Receiver を使ったイベントドリブンなループ
     loop {
         match to_parent_receiver.recv().unwrap() {
-            // 子スレッド１からのイベント
-            ToParentMessage::Child1(message) => {
+            // 子スレッドからのイベント
+            ToParentMessage::Child(message) => {
                 match message {
-                    FromChild1Message::Done => {
-                        println!("Child1: Return \"Done\".");
-                        to_child1_sender.send(ToChild1Message::Exit).unwrap();
-                        sent_exit1 = true;
-                        if sent_exit2 {
-                            break;
-                        }
+                    FromChildMessage::Done => {
+                        println!("Child: Return \"Done\".");
+                        break;
                     }
                     // 実際はもっといろいろなメッセージがあるはず。
                 }
             }
-            // 子スレッド2からのイベント
-            ToParentMessage::Child2(message) => {
-                match message {
-                    FromChild2Message::Done => {
-                        println!("Child2: Return \"Done\".");
-                        to_child2_sender.send(ToChild2Message::Exit).unwrap();
-                        sent_exit2 = true;
-                        if sent_exit1 {
-                            break;
-                        }
-                    }
-                    // 実際はもっといろいろなメッセージがあるはず。
-                }
-            }
+            // 他の子スレッドがある場合は以下に続く
         }
     }
-    child1_thread_instance.join().unwrap();
-    child2_thread_instance.join().unwrap();
-    println!("All child threads joined.");
+    // 子スレッド終了処理。Dropに実装しておいてもよい。
+    child.send(ToChildMessage::Exit);
+    child.join();
+    println!("the child thread joined.");
 }

@@ -2,5 +2,5 @@
 
 members = [
     "sample_bin",
-    "child2_lib",
+    "child_lib",
 ]
