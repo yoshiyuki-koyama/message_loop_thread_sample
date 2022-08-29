@@ -1,7 +1,7 @@
 use std::sync::mpsc::channel;
 
 extern crate child_lib;
-use child_lib::*;
+use child_lib::{ChildThread, FromChildMessage, ToChildMessage};
 
 // 各子スレッドから親スレッドへのメッセージ
 // 一か所でReceiveするためそれぞれの子スレッドからのメッセージ型を保有する。
