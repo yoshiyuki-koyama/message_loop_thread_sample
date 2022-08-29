@@ -4,6 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 // 親スレッドから子スレッドへのメッセージ
+// この実装では特に値を持たせていないが、Run(usize)などにすればそれぞれの列挙子に値を持たせられる。
 pub enum ToChildMessage {
     Run,
     Exit,
@@ -15,7 +16,7 @@ pub enum FromChildMessage {
 }
 
 // 子スレッドのメッセージ受信ループ用。
-// 列挙子は現実装では一つだが、この子スレッドがさらに子スレッド（=孫スレッド）を持つ場合にはFromGrandChild(FromGrandChild)みたいなものが追加されるイメージ。
+// 列挙子は現実装では一つだが、この子スレッドがさらに子スレッド（=孫スレッド）を持つ場合にはFromGrandChild(FromGrandChildMessage)みたいなものが追加されるイメージ。
 enum ToChildInnerMessage {
     FromParent(ToChildMessage)
 }
@@ -51,7 +52,7 @@ where F: Fn(FromChildMessage),
 
 
 // ジェネリックな関数を使って親スレッドへのメッセージ送信を実現する。
-// ジェネリックな関数の中身に関しては使用側(親スレッド)に任せる。
+// ジェネリックな関数の中身に関しては使用側(親スレッド)に任せることで柔軟に実装してもらえる。
 pub struct ChildThread{
     to_child_sender: Sender<ToChildInnerMessage>,
     op_child_thread: Option<JoinHandle<()>>,
@@ -78,7 +79,7 @@ impl ChildThread {
         self.to_child_sender.send(ToChildInnerMessage::FromParent(message)).unwrap()
     }
 
-    // この実装ではマニュアルでExit⇒join()するようにさせているが、impl Drop fpr ChildThreadも実装すると良いと思う（Exitメッセージのsend()も込みで。）。
+    // この実装ではマニュアルでExit⇒join()するようにさせているが、impl Drop for ChildThreadも実装すると良いと思う（Exitメッセージの送信も込みで。）。
     pub fn join(&mut self) {
         let op_child_thread = self.op_child_thread.take();
         if let Some(child_thread) = op_child_thread {
